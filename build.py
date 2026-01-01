@@ -47,9 +47,8 @@ def clean_build_artifacts():
         shutil.rmtree(BUILD_DIR)
         print(f"已删除: {BUILD_DIR}")
 
-    if SPEC_FILE.exists():
-        SPEC_FILE.unlink()
-        print(f"已删除: {SPEC_FILE}")
+    # 保留 spec 文件，不删除
+    print(f"保留 spec 文件: {SPEC_FILE}")
 
     print("清理完成")
 
@@ -61,25 +60,26 @@ def build_executable():
     # 检查图标文件
     if not ICON_PATH.exists():
         print(f"警告: 图标文件不存在: {ICON_PATH}")
-        icon_args = []
+        print("将在没有图标的情况下继续构建")
     else:
-        icon_args = [f"--icon={ICON_PATH}"]
+        print(f"使用图标: {ICON_PATH}")
 
-    # 构建 PyInstaller 命令
+    # 检查 spec 文件是否存在
+    if not SPEC_FILE.exists():
+        print(f"错误: spec 文件不存在: {SPEC_FILE}")
+        print("请确保 NetshTool.spec 文件存在于项目根目录")
+        return False
+
+    print(f"使用 spec 文件: {SPEC_FILE}")
+
+    # 使用 spec 文件构建
     cmd = [
         sys.executable,
         "-m",
         "PyInstaller",
-        "--name=NetshTool",
-        "--onefile",
-        "--windowed",
-        "--noconfirm",
+        "NetshTool.spec",
         "--clean",
-        *icon_args,
-        "--add-data=src/NetshTool/image;NetshTool/image",
-        "--collect-all=PySide6",
-        "--noupx",  # 禁用 UPX 压缩，加快启动速度
-        "src/app_entry.py",
+        "--noconfirm",
     ]
 
     success, output = run_command(cmd)
@@ -138,15 +138,13 @@ def main():
 
     print()
 
-    # 4. 清理构建产物（保留 dist 目录）
+    # 4. 清理构建产物（保留 dist 目录和 spec 文件）
     print("清理构建产物...")
     if BUILD_DIR.exists():
         shutil.rmtree(BUILD_DIR)
         print(f"已删除: {BUILD_DIR}")
 
-    if SPEC_FILE.exists():
-        SPEC_FILE.unlink()
-        print(f"已删除: {SPEC_FILE}")
+    print(f"保留 spec 文件: {SPEC_FILE}")
 
     print("\n" + "=" * 60)
     print("打包完成！")
