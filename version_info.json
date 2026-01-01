@@ -1,0 +1,6 @@
+{
+  "version": "1.0.0",
+  "release_date": "2026-01-01",
+  "description": "WiFi 管理工具 - 初始版本",
+  "changelog": "初始版本发布，支持 WiFi 网络的增删查导功能"
+}
