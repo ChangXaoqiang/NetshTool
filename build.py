@@ -78,6 +78,7 @@ def build_executable():
         *icon_args,
         "--add-data=src/NetshTool/image;NetshTool/image",
         "--collect-all=PySide6",
+        "--noupx",  # 禁用 UPX 压缩，加快启动速度
         "src/app_entry.py",
     ]
 
