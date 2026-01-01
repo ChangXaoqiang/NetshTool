@@ -2,9 +2,8 @@
 
 封装 netsh wlan 相关的命令执行逻辑。
 """
-import subprocess
 import logging
-from typing import List, Optional
+import subprocess
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +35,7 @@ class NetshExecutor:
         return data.decode("gbk", errors="ignore")
 
     @staticmethod
-    def _run_command(command: List[str]) -> tuple[bool, str]:
+    def _run_command(command: list[str]) -> tuple[bool, str]:
         """执行 shell 命令
 
         Args:
@@ -61,7 +60,7 @@ class NetshExecutor:
             logger.error(f"命令执行异常: {e}")
             return False, str(e)
 
-    def show_profiles(self) -> tuple[bool, List[str]]:
+    def show_profiles(self) -> tuple[bool, list[str]]:
         """获取所有已保存的 WiFi 配置文件
 
         Returns:
@@ -71,7 +70,7 @@ class NetshExecutor:
         if not success:
             return False, []
 
-        profiles: List[str] = []
+        profiles: list[str] = []
         for line in output.split("\n"):
             line = line.strip()
             if "所有用户配置文件" in line or "All User Profile" in line:

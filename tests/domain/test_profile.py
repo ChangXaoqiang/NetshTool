@@ -2,10 +2,8 @@
 import pytest
 
 from src.NetshTool.domain.profile import (
-    WiFiProfile,
     ConnectionMode,
-    AuthenticationType,
-    EncryptionType,
+    WiFiProfile,
 )
 
 

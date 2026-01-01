@@ -1,7 +1,6 @@
 """测试 XML 生成器"""
-import pytest
 
-from src.NetshTool.domain.profile import WiFiProfile, ConnectionMode
+from src.NetshTool.domain.profile import ConnectionMode, WiFiProfile
 from src.NetshTool.infrastructure.profile_xml_generator import ProfileXmlGenerator
 
 

@@ -1,156 +1,338 @@
-"""打包脚本
+"""项目打包脚本"""
 
-使用 PyInstaller 将项目打包为单文件可执行程序。
-"""
-import os
+from __future__ import annotations
+
+import argparse
+import json
+import logging
 import shutil
 import subprocess
 import sys
+from datetime import date
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from typing import Any
 
 PROJECT_ROOT = Path(__file__).parent
-DIST_DIR = PROJECT_ROOT / "dist"
-BUILD_DIR = PROJECT_ROOT / "build"
-SPEC_FILE = PROJECT_ROOT / "NetshTool.spec"
-ICON_PATH = PROJECT_ROOT / "src" / "NetshTool" / "image" / "icon.ico"
+SRC_DIR = PROJECT_ROOT / "src"
+PACKAGE_NAME = "NetshTool"
+ENTRY_SCRIPT = PROJECT_ROOT / "run.py"
 
 
-def run_command(cmd: list[str]) -> tuple[bool, str]:
-    """执行命令
-
-    Args:
-        cmd: 命令列表
-
-    Returns:
-        (成功标志, 输出内容)
-    """
-    try:
-        print(f"执行命令: {' '.join(cmd)}")
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            check=False,
-        )
-        success = result.returncode == 0
-        return success, result.stdout + result.stderr
-    except Exception as e:
-        return False, str(e)
+def _get_logs_dir() -> Path:
+    return PROJECT_ROOT / "logs"
 
 
-def clean_build_artifacts():
-    """清理构建产物"""
-    print("清理构建产物...")
+def _setup_logging() -> None:
+    logs_dir = _get_logs_dir()
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    log_file = logs_dir / f"app_{date.today():%Y%m%d}.log"
 
-    if BUILD_DIR.exists():
-        shutil.rmtree(BUILD_DIR)
-        print(f"已删除: {BUILD_DIR}")
+    formatter = logging.Formatter(
+        "%(asctime)s - %(levelname)s - %(funcName)s - %(message)s"
+    )
 
-    # 保留 spec 文件，不删除
-    print(f"保留 spec 文件: {SPEC_FILE}")
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
 
-    print("清理完成")
+    console_handler = logging.StreamHandler(sys.stderr)
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+
+    file_handler = RotatingFileHandler(
+        log_file, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"
+    )
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(formatter)
+
+    root_logger.handlers.clear()
+    root_logger.addHandler(console_handler)
+    root_logger.addHandler(file_handler)
 
 
-def build_executable():
-    """构建可执行文件"""
-    print("开始构建可执行文件...")
+def _run(
+    args: list[str],
+    *,
+    cwd: Path | None = None,
+    env: dict[str, str] | None = None,
+) -> None:
+    display = " ".join(args)
+    logging.info(f"执行命令: {display}")
+    subprocess.run(
+        args,
+        cwd=str(cwd) if cwd is not None else None,
+        env=env,
+        check=True,
+    )
 
-    # 检查图标文件
-    if not ICON_PATH.exists():
-        print(f"警告: 图标文件不存在: {ICON_PATH}")
-        print("将在没有图标的情况下继续构建")
-    else:
-        print(f"使用图标: {ICON_PATH}")
 
-    # 检查 spec 文件是否存在
-    if not SPEC_FILE.exists():
-        print(f"错误: spec 文件不存在: {SPEC_FILE}")
-        print("请确保 NetshTool.spec 文件存在于项目根目录")
-        return False
+def _load_version_info() -> dict[str, Any]:
+    version_info_path = PROJECT_ROOT / "version_info.json"
+    data = json.loads(version_info_path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("version_info.json 内容格式错误")
+    if "version" not in data:
+        raise ValueError("version_info.json 缺少 version 字段")
+    return data
 
-    print(f"使用 spec 文件: {SPEC_FILE}")
 
-    # 使用 spec 文件构建
+def _write_version_info(data: dict[str, Any]) -> None:
+    version_info_path = PROJECT_ROOT / "version_info.json"
+    version_info_path.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
+
+def _parse_semver(version: str) -> tuple[int, int, int]:
+    parts = version.split(".")
+    if len(parts) != 3:
+        raise ValueError(f"版本号不符合 SemVer: {version}")
+    major, minor, patch = (int(p) for p in parts)
+    return major, minor, patch
+
+
+def _generate_windows_version_file(
+    *,
+    app_name: str,
+    version: str,
+    description: str,
+    company_name: str,
+    product_name: str,
+    output_path: Path,
+) -> None:
+    major, minor, patch = _parse_semver(version)
+    filevers = (major, minor, patch, 0)
+    prodvers = (major, minor, patch, 0)
+
+    content = f"""
+# UTF-8
+VSVersionInfo(
+  ffi=FixedFileInfo(
+    filevers={filevers},
+    prodvers={prodvers},
+    mask=0x3f,
+    flags=0x0,
+    OS=0x4,
+    fileType=0x1,
+    subtype=0x0,
+    date=(0, 0)
+  ),
+  kids=[
+    StringFileInfo([
+      StringTable(
+        '040904B0',
+        [
+          StringStruct('CompanyName', '{company_name}'),
+          StringStruct('FileDescription', '{description}'),
+          StringStruct('FileVersion', '{version}'),
+          StringStruct('InternalName', '{app_name}'),
+          StringStruct('OriginalFilename', '{app_name}.exe'),
+          StringStruct('ProductName', '{product_name}'),
+          StringStruct('ProductVersion', '{version}')
+        ]
+      )
+    ]),
+    VarFileInfo([VarStruct('Translation', [1033, 1200])])
+  ]
+)
+""".lstrip()
+
+    output_path.write_text(content, encoding="utf-8")
+
+
+def _install_requirements(*, dev: bool) -> None:
+    requirements_path = PROJECT_ROOT / (
+        "requirements-dev.txt" if dev else "requirements.txt"
+    )
+    if not requirements_path.exists():
+        raise FileNotFoundError(str(requirements_path))
+    _run([sys.executable, "-m", "pip", "install", "-r", str(requirements_path)])
+
+
+def _run_quality_checks(*, run_ruff: bool, run_mypy: bool, run_pytest: bool) -> None:
+    if run_ruff:
+        _run([sys.executable, "-m", "ruff", "check", "."])
+    if run_mypy:
+        _run([sys.executable, "-m", "mypy", "src"])
+    if run_pytest:
+        _run([sys.executable, "-m", "pytest"])
+
+
+def _pyinstaller_add_data_arg(source: Path, destination: str) -> str:
+    return f"{source}{os_pathsep()}{destination}"
+
+
+def os_pathsep() -> str:
+    return ";" if sys.platform.startswith("win") else ":"
+
+
+def _build_pyinstaller(
+    *,
+    onefile: bool,
+    clean: bool,
+) -> Path:
+    version_info = _load_version_info()
+    version = str(version_info.get("version", "0.0.0"))
+    description = str(version_info.get("description", PACKAGE_NAME))
+
+    icon_path = SRC_DIR / PACKAGE_NAME / "image" / "icon.ico"
+    if not icon_path.exists():
+        raise FileNotFoundError(str(icon_path))
+
+    temp_dir = PROJECT_ROOT / ".build_temp"
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    version_file = temp_dir / "version_file.txt"
+    _generate_windows_version_file(
+        app_name=PACKAGE_NAME,
+        version=version,
+        description=description,
+        company_name="NetshTool",
+        product_name=PACKAGE_NAME,
+        output_path=version_file,
+    )
+
     cmd = [
         sys.executable,
         "-m",
         "PyInstaller",
-        "NetshTool.spec",
-        "--clean",
         "--noconfirm",
+        "--noupx",
+        "--name",
+        PACKAGE_NAME,
+        "--paths",
+        str(SRC_DIR),
+        "--icon",
+        str(icon_path),
+        "--add-data",
+        _pyinstaller_add_data_arg(icon_path, f"{PACKAGE_NAME}/image"),
+        "--version-file",
+        str(version_file),
     ]
+    if clean:
+        cmd.append("--clean")
+    if onefile:
+        cmd.append("--onefile")
+    else:
+        cmd.append("--onedir")
+    cmd.append("--noconsole")
+    cmd.append(str(ENTRY_SCRIPT))
 
-    success, output = run_command(cmd)
+    _run(cmd, cwd=PROJECT_ROOT)
 
-    if not success:
-        print(f"构建失败:\n{output}")
-        return False
-
-    print("构建成功！")
-    return True
-
-
-def run_smoke_test() -> bool:
-    """运行冒烟测试
-
-    Returns:
-        测试是否通过
-    """
-    print("\n开始冒烟测试...")
-
-    exe_path = DIST_DIR / "NetshTool.exe"
-
-    if not exe_path.exists():
-        print(f"错误: 可执行文件不存在: {exe_path}")
-        return False
-
-    print(f"找到可执行文件: {exe_path}")
-    print(f"文件大小: {exe_path.stat().st_size / 1024 / 1024:.2f} MB")
-    print("注意: 冒烟测试需要手动验证程序启动和基本功能")
-    print("请双击运行可执行文件进行手动测试")
-    print("\n冒烟测试完成")
-    return True
+    dist_dir = PROJECT_ROOT / "dist"
+    if onefile:
+        exe = dist_dir / f"{PACKAGE_NAME}.exe"
+    else:
+        exe = dist_dir / PACKAGE_NAME / f"{PACKAGE_NAME}.exe"
+    if not exe.exists():
+        raise FileNotFoundError(str(exe))
+    return exe
 
 
-def main():
-    """主函数"""
-    print("=" * 60)
-    print("NetshTool 打包脚本")
-    print("=" * 60)
+def _smoke_test(*, built_executable: Path, onefile: bool) -> None:
+    if not built_executable.exists():
+        raise FileNotFoundError(str(built_executable))
 
-    # 1. 清理旧构建产物
-    clean_build_artifacts()
-    print()
+    if not onefile:
+        icon_in_dist = built_executable.parent / PACKAGE_NAME / "image" / "icon.ico"
+        if not icon_in_dist.exists():
+            raise FileNotFoundError(str(icon_in_dist))
 
-    # 2. 构建可执行文件
-    if not build_executable():
-        print("\n构建失败，退出")
-        sys.exit(1)
 
-    print()
+def _cleanup_pyinstaller_artifacts(*, remove_dist: bool) -> None:
+    for pattern in ("*.spec",):
+        for p in PROJECT_ROOT.glob(pattern):
+            p.unlink(missing_ok=True)
 
-    # 3. 运行冒烟测试
-    if not run_smoke_test():
-        print("\n冒烟测试失败，退出")
-        sys.exit(1)
+    shutil.rmtree(PROJECT_ROOT / "build", ignore_errors=True)
+    shutil.rmtree(PROJECT_ROOT / ".build_temp", ignore_errors=True)
 
-    print()
+    if remove_dist:
+        shutil.rmtree(PROJECT_ROOT / "dist", ignore_errors=True)
 
-    # 4. 清理构建产物（保留 dist 目录和 spec 文件）
-    print("清理构建产物...")
-    if BUILD_DIR.exists():
-        shutil.rmtree(BUILD_DIR)
-        print(f"已删除: {BUILD_DIR}")
+    for pycache in PROJECT_ROOT.rglob("__pycache__"):
+        shutil.rmtree(pycache, ignore_errors=True)
 
-    print(f"保留 spec 文件: {SPEC_FILE}")
 
-    print("\n" + "=" * 60)
-    print("打包完成！")
-    print(f"可执行文件位置: {DIST_DIR / 'NetshTool.exe'}")
-    print("=" * 60)
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="build.py")
+    parser.add_argument("--onedir", action="store_true", help="使用目录模式输出")
+    parser.add_argument(
+        "--clean", action="store_true", help="清理 PyInstaller 缓存后再打包"
+    )
+    parser.add_argument(
+        "--install",
+        action="store_true",
+        help="安装 requirements-dev.txt 后再执行后续流程",
+    )
+    parser.add_argument("--skip-ruff", action="store_true", help="跳过 ruff 检查")
+    parser.add_argument("--skip-mypy", action="store_true", help="跳过 mypy 检查")
+    parser.add_argument("--skip-pytest", action="store_true", help="跳过 pytest")
+    parser.add_argument(
+        "--skip-smoke-test", action="store_true", help="跳过构建后的冒烟测试"
+    )
+    parser.add_argument(
+        "--set-version",
+        type=str,
+        default="",
+        help="更新 version_info.json 的 version（SemVer，如 1.2.3）",
+    )
+    parser.add_argument(
+        "--update-release-date",
+        action="store_true",
+        help="将 version_info.json 的 release_date 更新为今天",
+    )
+    parser.add_argument(
+        "--purge-dist",
+        action="store_true",
+        help="打包结束后删除 dist 目录",
+    )
+    return parser
+
+
+def main() -> int:
+    _setup_logging()
+    args = _build_parser().parse_args()
+
+    try:
+        if args.set_version or args.update_release_date:
+            info = _load_version_info()
+            if args.set_version:
+                _parse_semver(args.set_version)
+                info["version"] = args.set_version
+            if args.update_release_date:
+                info["release_date"] = f"{date.today():%Y-%m-%d}"
+            _write_version_info(info)
+            logging.info("version_info.json 已更新")
+
+        if args.install:
+            _install_requirements(dev=True)
+
+        _run_quality_checks(
+            run_ruff=not args.skip_ruff,
+            run_mypy=not args.skip_mypy,
+            run_pytest=not args.skip_pytest,
+        )
+
+        built_executable = _build_pyinstaller(onefile=not args.onedir, clean=args.clean)
+        logging.info(f"打包完成: {built_executable}")
+
+        if not args.skip_smoke_test:
+            _smoke_test(built_executable=built_executable, onefile=not args.onedir)
+            logging.info("冒烟测试通过")
+
+        _cleanup_pyinstaller_artifacts(remove_dist=args.purge_dist)
+        return 0
+    except subprocess.CalledProcessError as e:
+        logging.error(f"命令执行失败: {e}", exc_info=True)
+        _cleanup_pyinstaller_artifacts(remove_dist=False)
+        return 1
+    except Exception as e:
+        logging.error(f"构建失败: {e}", exc_info=True)
+        _cleanup_pyinstaller_artifacts(remove_dist=False)
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
+

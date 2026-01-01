@@ -3,8 +3,8 @@
 根据 WiFi 配置实体生成 XML 格式的配置文件。
 """
 import logging
-from xml.etree.ElementTree import Element, SubElement, tostring
 from xml.dom import minidom
+from xml.etree.ElementTree import Element, SubElement, tostring
 
 from ..domain.profile import WiFiProfile
 

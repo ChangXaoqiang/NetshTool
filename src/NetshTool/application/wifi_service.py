@@ -5,10 +5,8 @@
 import logging
 import tempfile
 from pathlib import Path
-from typing import List, Optional
 
-from ..domain.profile import WiFiProfile, ConnectionMode
-from ..domain.network_list import WiFiNetworkList
+from ..domain.profile import ConnectionMode, WiFiProfile
 from ..infrastructure.netsh_executor import NetshExecutor
 from ..infrastructure.profile_xml_generator import ProfileXmlGenerator
 
@@ -28,7 +26,7 @@ class WiFiService:
         self._temp_dir = Path(tempfile.gettempdir()) / "NetshTool"
         self._temp_dir.mkdir(parents=True, exist_ok=True)
 
-    def get_saved_networks(self) -> tuple[bool, List[str]]:
+    def get_saved_networks(self) -> tuple[bool, list[str]]:
         """获取已保存的 WiFi 网络列表
 
         Returns:
@@ -60,7 +58,9 @@ class WiFiService:
             profile = WiFiProfile(
                 name=name,
                 password=password,
-                connection_mode=ConnectionMode.AUTO if auto_connect else ConnectionMode.MANUAL,
+                connection_mode=(
+                    ConnectionMode.AUTO if auto_connect else ConnectionMode.MANUAL
+                ),
             )
 
             # 生成 XML 配置文件

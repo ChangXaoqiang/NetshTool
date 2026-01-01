@@ -1,5 +1,6 @@
 from pathlib import Path
 
+
 def get_project_root() -> Path:
     """获取项目根目录"""
     # 从 infrastructure/paths.py 向上 3 层是 NetshTool/

@@ -25,9 +25,9 @@ else:
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import Qt
 
 from NetshTool.infrastructure.paths import get_project_root
 from NetshTool.interface.main_window import MainWindow

@@ -4,9 +4,13 @@
 """
 import logging
 import xml.etree.ElementTree as ET
-from typing import Optional
 
-from ..domain.profile import WiFiProfile, ConnectionMode, AuthenticationType, EncryptionType
+from ..domain.profile import (
+    AuthenticationType,
+    ConnectionMode,
+    EncryptionType,
+    WiFiProfile,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +23,7 @@ class ProfileXmlParser:
 
     NAMESPACE_V1 = "http://www.microsoft.com/networking/WLAN/profile/v1"
 
-    def parse_xml(self, xml_content: str) -> Optional[WiFiProfile]:
+    def parse_xml(self, xml_content: str) -> WiFiProfile | None:
         """解析 XML 配置文件
 
         Args:

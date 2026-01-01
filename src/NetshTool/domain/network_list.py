@@ -3,7 +3,6 @@
 定义 WiFi 网络列表的数据结构。
 """
 from dataclasses import dataclass
-from typing import List
 
 
 @dataclass
@@ -13,7 +12,7 @@ class WiFiNetworkList:
     Attributes:
         profiles: WiFi 配置文件名称列表
     """
-    profiles: List[str]
+    profiles: list[str]
 
     def is_empty(self) -> bool:
         """检查是否为空列表"""

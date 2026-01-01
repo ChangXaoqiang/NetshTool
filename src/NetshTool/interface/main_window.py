@@ -4,25 +4,24 @@ WiFi 管理工具的主界面。
 """
 
 import logging
-from datetime import datetime
 from logging import Handler
 
+from PySide6.QtCore import Slot
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
-    QMainWindow,
-    QWidget,
-    QVBoxLayout,
+    QCheckBox,
+    QGroupBox,
     QHBoxLayout,
-    QPushButton,
-    QListWidget,
     QLabel,
     QLineEdit,
-    QCheckBox,
+    QListWidget,
+    QMainWindow,
     QMessageBox,
-    QGroupBox,
+    QPushButton,
     QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
-from PySide6.QtCore import Slot, QObject, Signal
-from PySide6.QtGui import QColor
 
 from ..application.wifi_service import WiFiService
 
@@ -300,9 +299,14 @@ class MainWindow(QMainWindow):
     @Slot()
     def _delete_all(self):
         """删除所有 WiFi 网络"""
+        message = (
+            "确定要删除所有 WiFi 配置文件吗？\n"
+            "此操作不可撤销！\n\n"
+            "请再次确认是否继续？"
+        )
         reply = self._show_question_message(
             "危险操作",
-            "确定要删除所有 WiFi 配置文件吗？\n此操作不可撤销！\n\n请再次确认是否继续？",
+            message,
         )
         if reply != QMessageBox.StandardButton.Yes:
             return
@@ -320,15 +324,33 @@ class MainWindow(QMainWindow):
 
     def _show_info_message(self, title: str, message: str):
         """显示信息对话框"""
-        QMessageBox.information(self, title, message)
+        QMessageBox.information(
+            self,
+            title,
+            message,
+            QMessageBox.StandardButton.Ok,
+            QMessageBox.StandardButton.Ok,
+        )
 
     def _show_warning_message(self, title: str, message: str):
         """显示警告对话框"""
-        QMessageBox.warning(self, title, message)
+        QMessageBox.warning(
+            self,
+            title,
+            message,
+            QMessageBox.StandardButton.Ok,
+            QMessageBox.StandardButton.Ok,
+        )
 
     def _show_error_message(self, title: str, message: str):
         """显示错误对话框"""
-        QMessageBox.critical(self, title, message)
+        QMessageBox.critical(
+            self,
+            title,
+            message,
+            QMessageBox.StandardButton.Ok,
+            QMessageBox.StandardButton.Ok,
+        )
 
     def _show_question_message(
         self, title: str, message: str
