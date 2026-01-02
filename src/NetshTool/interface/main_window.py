@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QListWidget,
+    QListWidgetItem,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -173,9 +174,23 @@ class MainWindow(QMainWindow):
         try:
             success, networks = self._wifi_service.get_saved_networks()
             if success:
+                connected_network = self._wifi_service.get_connected_network()
                 self._network_list.clear()
                 for network in networks:
-                    self._network_list.addItem(network)
+                    item = QListWidgetItem()
+                    item.setText(network)
+                    self._network_list.addItem(item)
+                    if connected_network is not None and network == connected_network:
+                        widget = QWidget()
+                        layout = QHBoxLayout(widget)
+                        layout.setContentsMargins(0, 0, 0, 0)
+                        name_label = QLabel(network)
+                        status_label = QLabel("已连接")
+                        status_label.setStyleSheet("color: #28a745; font-weight: bold;")
+                        layout.addWidget(name_label)
+                        layout.addStretch(1)
+                        layout.addWidget(status_label)
+                        self._network_list.setItemWidget(item, widget)
                 self.statusBar().showMessage(
                     f"已更新网络列表，共 {len(networks)} 个网络"
                 )

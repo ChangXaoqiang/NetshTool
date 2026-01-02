@@ -4,6 +4,7 @@
 """
 import logging
 import tempfile
+import time
 from pathlib import Path
 
 from ..domain.profile import ConnectionMode, WiFiProfile
@@ -176,13 +177,16 @@ class WiFiService:
             (成功标志, 消息)
         """
         try:
-            # 先断开当前连接
+            if self._executor.is_connected_to(name):
+                message = f"已成功连接到 {name}"
+                logger.info(message)
+                return True, message
+
             _, _ = self._executor.disconnect()
             logger.info("已断开当前连接")
+            time.sleep(1.5)
 
-            # 再连接目标网络
             success, message = self._executor.connect(name)
-
             if success:
                 message = f"已成功连接到 {name}"
                 logger.info(message)
@@ -195,3 +199,16 @@ class WiFiService:
             error_msg = f"连接 WiFi 网络时发生异常: {e}"
             logger.error(error_msg, exc_info=True)
             return False, error_msg
+
+    def get_connected_network(self) -> str | None:
+        status = self._executor.get_interface_status()
+        state = status.state or ""
+        normalized = state.strip().lower()
+        is_connected = ("connected" in normalized) or ("已连接" in state)
+        if not is_connected:
+            return None
+        if status.profile is not None:
+            return status.profile
+        if status.ssid is not None:
+            return status.ssid
+        return None

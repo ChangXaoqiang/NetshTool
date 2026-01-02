@@ -86,6 +86,7 @@ class TestNetshExecutor:
             配置文件               : 7-1客厅_5G
         """.strip()
         status = NetshExecutor._parse_interface_status(output)
+        assert status.interface_name == "Wi-Fi"
         assert status.ssid == "7-1客厅_5G"
         assert status.profile == "7-1客厅_5G"
         assert NetshExecutor._is_connected_state(status.state) is True
@@ -107,6 +108,7 @@ class TestNetshExecutor:
             Profile                : MyWifi
         """.strip()
         status = NetshExecutor._parse_interface_status(output)
+        assert status.interface_name == "Wi-Fi"
         assert status.ssid == "MyWifi"
         assert status.profile == "MyWifi"
         assert NetshExecutor._is_connected_state(status.state) is True
