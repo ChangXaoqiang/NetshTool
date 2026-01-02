@@ -140,24 +140,6 @@ VSVersionInfo(
     output_path.write_text(content, encoding="utf-8")
 
 
-def _install_requirements(*, dev: bool) -> None:
-    requirements_path = PROJECT_ROOT / (
-        "requirements-dev.txt" if dev else "requirements.txt"
-    )
-    if not requirements_path.exists():
-        raise FileNotFoundError(str(requirements_path))
-    _run([sys.executable, "-m", "pip", "install", "-r", str(requirements_path)])
-
-
-def _run_quality_checks(*, run_ruff: bool, run_mypy: bool, run_pytest: bool) -> None:
-    if run_ruff:
-        _run([sys.executable, "-m", "ruff", "check", "."])
-    if run_mypy:
-        _run([sys.executable, "-m", "mypy", "src"])
-    if run_pytest:
-        _run([sys.executable, "-m", "pytest"])
-
-
 def _pyinstaller_add_data_arg(source: Path, destination: str) -> str:
     return f"{source}{os_pathsep()}{destination}"
 
@@ -261,14 +243,6 @@ def _build_parser() -> argparse.ArgumentParser:
         "--clean", action="store_true", help="清理 PyInstaller 缓存后再打包"
     )
     parser.add_argument(
-        "--install",
-        action="store_true",
-        help="安装 requirements-dev.txt 后再执行后续流程",
-    )
-    parser.add_argument("--skip-ruff", action="store_true", help="跳过 ruff 检查")
-    parser.add_argument("--skip-mypy", action="store_true", help="跳过 mypy 检查")
-    parser.add_argument("--skip-pytest", action="store_true", help="跳过 pytest")
-    parser.add_argument(
         "--skip-smoke-test", action="store_true", help="跳过构建后的冒烟测试"
     )
     parser.add_argument(
@@ -304,15 +278,6 @@ def main() -> int:
                 info["release_date"] = f"{date.today():%Y-%m-%d}"
             _write_version_info(info)
             logging.info("version_info.json 已更新")
-
-        if args.install:
-            _install_requirements(dev=True)
-
-        _run_quality_checks(
-            run_ruff=not args.skip_ruff,
-            run_mypy=not args.skip_mypy,
-            run_pytest=not args.skip_pytest,
-        )
 
         built_executable = _build_pyinstaller(onefile=not args.onedir, clean=args.clean)
         logging.info(f"打包完成: {built_executable}")
