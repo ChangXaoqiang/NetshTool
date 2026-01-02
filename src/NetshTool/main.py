@@ -41,10 +41,11 @@ def get_icon_path() -> Path:
             base_path = Path(sys._MEIPASS)
         else:
             base_path = Path(sys.executable).parent
+        return base_path / "NetshTool" / "image" / "icon.ico"
     else:
         # 开发环境
-        base_path = get_project_root()
-    return base_path / "NetshTool" / "image" / "icon.ico"
+        project_root = get_project_root()
+        return project_root / "src" / "NetshTool" / "image" / "icon.ico"
 
 
 def setup_logging():

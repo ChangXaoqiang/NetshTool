@@ -2,12 +2,23 @@
 
 封装 netsh wlan 相关的命令执行逻辑。
 """
+from __future__ import annotations
+
 import logging
 import subprocess
 import sys
+import time
+from dataclasses import dataclass
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class NetshInterfaceStatus:
+    state: str | None
+    ssid: str | None
+    profile: str | None
 
 
 class NetshExecutor:
@@ -68,6 +79,56 @@ class NetshExecutor:
         except Exception as e:
             logger.error(f"命令执行异常: {e}")
             return False, str(e)
+
+    @staticmethod
+    def _extract_value(output: str, keys: set[str]) -> str | None:
+        for raw_line in output.splitlines():
+            line = raw_line.strip()
+            if not line or ":" not in line:
+                continue
+            left, right = line.split(":", 1)
+            key = left.strip().lower()
+            if key in keys:
+                value = right.strip()
+                if value:
+                    return value
+        return None
+
+    def get_interface_status(self) -> NetshInterfaceStatus:
+        success, output = self._run_command(["netsh", "wlan", "show", "interfaces"])
+        if not success and not output:
+            return NetshInterfaceStatus(state=None, ssid=None, profile=None)
+        return self._parse_interface_status(output)
+
+    @classmethod
+    def _parse_interface_status(cls, output: str) -> NetshInterfaceStatus:
+        state = cls._extract_value(output, {"state", "状态"})
+        ssid = cls._extract_value(output, {"ssid"})
+        profile = cls._extract_value(output, {"profile", "配置文件"})
+        return NetshInterfaceStatus(state=state, ssid=ssid, profile=profile)
+
+    @staticmethod
+    def _is_connected_state(state: str | None) -> bool:
+        if state is None:
+            return False
+        normalized = state.strip().lower()
+        return ("connected" in normalized) or ("已连接" in state)
+
+    def is_connected_to(self, name: str) -> bool:
+        status = self.get_interface_status()
+        if not self._is_connected_state(status.state):
+            return False
+        if status.profile is not None and status.profile == name:
+            return True
+        if status.ssid is not None and status.ssid == name:
+            return True
+        return False
+
+    @staticmethod
+    def _format_netsh_kv_arg(key: str, value: str) -> str:
+        if any(ch.isspace() for ch in value):
+            return f'{key}="{value}"'
+        return f"{key}={value}"
 
     def show_profiles(self) -> tuple[bool, list[str]]:
         """获取所有已保存的 WiFi 配置文件
@@ -212,16 +273,25 @@ class NetshExecutor:
         Returns:
             (成功标志, 消息)
         """
-        success, output = self._run_command([
-            "netsh",
-            "wlan",
-            "connect",
-            f"name={name}",
-        ])
+        success, output = self._run_command(
+            [
+                "netsh",
+                "wlan",
+                "connect",
+                self._format_netsh_kv_arg("name", name),
+            ]
+        )
+
+        deadline = time.monotonic() + 8.0
+        while time.monotonic() < deadline:
+            if self.is_connected_to(name):
+                logger.info(f"已连接到 WiFi: {name}")
+                return True, f"已成功连接到 {name}"
+            time.sleep(0.4)
 
         if success:
             logger.info(f"成功连接到 WiFi: {name}")
             return True, f"已成功连接到 {name}"
-        else:
-            logger.error(f"连接 WiFi 失败: {name}")
-            return False, f"连接失败: {output}"
+
+        logger.error(f"连接 WiFi 失败: {name}")
+        return False, f"连接失败: {output}"
