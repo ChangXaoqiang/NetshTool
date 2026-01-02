@@ -4,6 +4,8 @@
 """
 import logging
 import subprocess
+import sys
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +47,17 @@ class NetshExecutor:
             (成功标志, 输出内容)
         """
         try:
+            run_kwargs: dict[str, Any] = {
+                "capture_output": True,
+                "check": False,
+            }
+            if sys.platform.startswith("win"):
+                create_no_window = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+                if isinstance(create_no_window, int) and create_no_window != 0:
+                    run_kwargs["creationflags"] = create_no_window
             result = subprocess.run(
                 command,
-                capture_output=True,
-                check=False,
+                **run_kwargs,
             )
             success = result.returncode == 0
             # 使用自定义解码方法
