@@ -282,7 +282,7 @@ class NetshExecutor:
             ]
         )
 
-        deadline = time.monotonic() + 8.0
+        deadline = time.monotonic() + 15.0
         while time.monotonic() < deadline:
             if self.is_connected_to(name):
                 logger.info(f"已连接到 WiFi: {name}")
@@ -294,4 +294,10 @@ class NetshExecutor:
             return True, f"已成功连接到 {name}"
 
         logger.error(f"连接 WiFi 失败: {name}")
-        return False, f"连接失败: {output}"
+        status = self.get_interface_status()
+        detail = (
+            f"状态={status.state or '未知'}, "
+            f"SSID={status.ssid or '未知'}, "
+            f"配置文件={status.profile or '未知'}"
+        )
+        return False, f"连接失败: {output}\n{detail}"
