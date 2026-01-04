@@ -6,7 +6,7 @@ WiFi 管理工具的主界面。
 import logging
 from logging import Handler
 
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -68,6 +68,13 @@ class MainWindow(QMainWindow):
         self._setup_log_handler()
         self._refresh_networks()
 
+    @staticmethod
+    def _get_network_name_from_item(item: QListWidgetItem) -> str:
+        name = item.data(Qt.ItemDataRole.UserRole)
+        if isinstance(name, str) and name:
+            return name
+        return item.text()
+
     def _setup_log_handler(self):
         """设置日志处理器"""
         # 获取根日志器
@@ -81,7 +88,7 @@ class MainWindow(QMainWindow):
     def _init_ui(self):
         """初始化用户界面"""
         self.setWindowTitle("管理已知 WiFi v1.0.0 by @xiaoqiang.chang")
-        self.setMinimumSize(800, 600)
+        self.setMinimumSize(500, 600)
 
         # 中心部件
         central_widget = QWidget()
@@ -174,19 +181,13 @@ class MainWindow(QMainWindow):
                 self._network_list.clear()
                 for network in networks:
                     item = QListWidgetItem()
-                    item.setText(network)
-                    self._network_list.addItem(item)
+                    item.setData(Qt.ItemDataRole.UserRole, network)
+                    display_text = network
                     if connected_network is not None and network == connected_network:
-                        widget = QWidget()
-                        layout = QHBoxLayout(widget)
-                        layout.setContentsMargins(0, 0, 0, 0)
-                        name_label = QLabel(network)
-                        status_label = QLabel("已连接")
-                        status_label.setStyleSheet("color: #28a745; font-weight: bold;")
-                        layout.addWidget(name_label)
-                        layout.addStretch(1)
-                        layout.addWidget(status_label)
-                        self._network_list.setItemWidget(item, widget)
+                        display_text = f"{network}（已连接）"
+                        item.setForeground(QColor("#28a745"))
+                    item.setText(display_text)
+                    self._network_list.addItem(item)
                 self.statusBar().showMessage(
                     f"已更新网络列表，共 {len(networks)} 个网络"
                 )
@@ -234,7 +235,7 @@ class MainWindow(QMainWindow):
             self._show_warning_message("选择错误", "请先选择要导出的 WiFi 网络")
             return
 
-        network_name = selected_items[0].text()
+        network_name = self._get_network_name_from_item(selected_items[0])
 
         reply = self._show_question_message(
             "确认导出",
@@ -261,7 +262,7 @@ class MainWindow(QMainWindow):
             self._show_warning_message("选择错误", "请先选择要删除的 WiFi 网络")
             return
 
-        network_name = selected_items[0].text()
+        network_name = self._get_network_name_from_item(selected_items[0])
 
         reply = self._show_question_message(
             "确认删除", f'确定要删除 WiFi 网络 "{network_name}" 吗？\n此操作不可撤销！'
