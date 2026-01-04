@@ -4,7 +4,6 @@
 """
 import logging
 import tempfile
-import time
 from pathlib import Path
 
 from ..domain.profile import ConnectionMode, WiFiProfile
@@ -164,39 +163,6 @@ class WiFiService:
 
         except Exception as e:
             error_msg = f"删除所有 WiFi 网络时发生异常: {e}"
-            logger.error(error_msg, exc_info=True)
-            return False, error_msg
-
-    def connect_wifi(self, name: str) -> tuple[bool, str]:
-        """连接到指定的 WiFi 网络
-
-        Args:
-            name: WiFi 网络名称
-
-        Returns:
-            (成功标志, 消息)
-        """
-        try:
-            if self._executor.is_connected_to(name):
-                message = f"已成功连接到 {name}"
-                logger.info(message)
-                return True, message
-
-            _, _ = self._executor.disconnect()
-            logger.info("已断开当前连接")
-            time.sleep(1.5)
-
-            success, message = self._executor.connect(name)
-            if success:
-                message = f"已成功连接到 {name}"
-                logger.info(message)
-            else:
-                logger.error(f"连接 WiFi 失败: {name}")
-
-            return success, message
-
-        except Exception as e:
-            error_msg = f"连接 WiFi 网络时发生异常: {e}"
             logger.error(error_msg, exc_info=True)
             return False, error_msg
 

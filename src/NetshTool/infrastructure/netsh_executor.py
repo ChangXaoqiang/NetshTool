@@ -7,7 +7,6 @@ from __future__ import annotations
 import logging
 import subprocess
 import sys
-import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -144,22 +143,6 @@ class NetshExecutor:
         normalized = state.strip().lower()
         return ("connected" in normalized) or ("已连接" in state)
 
-    def is_connected_to(self, name: str) -> bool:
-        status = self.get_interface_status()
-        if not self._is_connected_state(status.state):
-            return False
-        if status.profile is not None and status.profile == name:
-            return True
-        if status.ssid is not None and status.ssid == name:
-            return True
-        return False
-
-    @staticmethod
-    def _format_netsh_kv_arg(key: str, value: str) -> str:
-        if any(ch.isspace() for ch in value):
-            return f'{key}="{value}"'
-        return f"{key}={value}"
-
     def show_profiles(self) -> tuple[bool, list[str]]:
         """获取所有已保存的 WiFi 配置文件
 
@@ -278,65 +261,3 @@ class NetshExecutor:
         else:
             logger.error("删除所有配置文件失败")
             return False, f"删除失败: {output}"
-
-    def disconnect(self) -> tuple[bool, str]:
-        """断开当前 WiFi 连接
-
-        Returns:
-            (成功标志, 消息)
-        """
-        success, output = self._run_command(["netsh", "wlan", "disconnect"])
-
-        if success:
-            return True, "已成功断开 WiFi 连接"
-        else:
-            logger.error("断开 WiFi 连接失败")
-            return False, f"断开失败: {output}"
-
-    def connect(self, name: str) -> tuple[bool, str]:
-        """连接到指定的 WiFi 网络
-
-        Args:
-            name: WiFi 网络名称
-
-        Returns:
-            (成功标志, 消息)
-        """
-        status_before = self.get_interface_status()
-        if self._is_connected_state(status_before.state) and (
-            status_before.profile == name or status_before.ssid == name
-        ):
-            return True, f"已成功连接到 {name}"
-
-        cmd = [
-            "netsh",
-            "wlan",
-            "connect",
-            self._format_netsh_kv_arg("name", name),
-        ]
-        if status_before.interface_name is not None:
-            cmd.append(
-                self._format_netsh_kv_arg("interface", status_before.interface_name)
-            )
-        success, output = self._run_command(cmd)
-
-        time.sleep(1.5)
-
-        deadline = time.monotonic() + 15.0
-        while time.monotonic() < deadline:
-            if self.is_connected_to(name):
-                return True, f"已成功连接到 {name}"
-            time.sleep(0.4)
-
-        if success:
-            return True, f"已成功连接到 {name}"
-
-        logger.error(f"连接 WiFi 失败: {name}")
-        status = self.get_interface_status()
-        detail = (
-            f"接口={status.interface_name or '未知'}, "
-            f"状态={status.state or '未知'}, "
-            f"SSID={status.ssid or '未知'}, "
-            f"配置文件={status.profile or '未知'}"
-        )
-        return False, f"连接失败: {output}\n{detail}"

@@ -80,7 +80,7 @@ class MainWindow(QMainWindow):
 
     def _init_ui(self):
         """初始化用户界面"""
-        self.setWindowTitle("WiFi 管理工具 v1.0.0 by @xiaoqiang.chang")
+        self.setWindowTitle("管理已知 WiFi v1.0.0 by @xiaoqiang.chang")
         self.setMinimumSize(800, 600)
 
         # 中心部件
@@ -95,16 +95,12 @@ class MainWindow(QMainWindow):
         self._network_list = QListWidget()
         main_layout.addWidget(self._network_list)
 
-        # 操作按钮区域（刷新列表、连接选中、导出选中、删除选中、删除全部）
+        # 操作按钮区域（刷新列表、导出选中、删除选中、删除全部）
         button_layout = QHBoxLayout()
 
         self._refresh_btn = QPushButton("刷新列表")
         self._refresh_btn.clicked.connect(self._refresh_networks)
         button_layout.addWidget(self._refresh_btn)
-
-        self._connect_btn = QPushButton("连接选中")
-        self._connect_btn.clicked.connect(self._connect_selected)
-        button_layout.addWidget(self._connect_btn)
 
         self._export_btn = QPushButton("导出选中")
         self._export_btn.clicked.connect(self._export_selected)
@@ -199,33 +195,6 @@ class MainWindow(QMainWindow):
         except Exception as e:
             logger.error(f"刷新网络列表异常: {e}", exc_info=True)
             self._show_error_message("刷新异常", f"刷新网络列表时发生异常: {e}")
-
-    @Slot()
-    def _connect_selected(self):
-        """连接选中的 WiFi 网络"""
-        selected_items = self._network_list.selectedItems()
-        if not selected_items:
-            self._show_warning_message("选择错误", "请先选择要连接的 WiFi 网络")
-            return
-
-        network_name = selected_items[0].text()
-
-        reply = self._show_question_message(
-            "确认连接",
-            f'确定要连接到 "{network_name}" 吗？\n当前 WiFi 连接将会被断开。',
-        )
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-
-        try:
-            success, message = self._wifi_service.connect_wifi(network_name)
-            if success:
-                self._show_info_message("连接成功", message)
-            else:
-                self._show_error_message("连接失败", message)
-        except Exception as e:
-            logger.error(f"连接 WiFi 异常: {e}", exc_info=True)
-            self._show_error_message("连接异常", f"连接 WiFi 时发生异常: {e}")
 
     @Slot()
     def _add_wifi(self):
